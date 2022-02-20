@@ -51,6 +51,7 @@ function JGTResolveFunction(argTargetFunctionOrString) {
                         // do gml scripts now.
                         ingmlscripts = true;
                         i = 100000;
+                        // gml script indexes start at 100000 plus one. (100000 will return <unknown>)
                         continue;
                     }
                     
@@ -74,6 +75,8 @@ function JGTResolveFunction(argTargetFunctionOrString) {
     return argTargetFunctionOrString;
 }
 
+// a dummy function in case a resource type doesn't have it's own (good example - network sockets, no network_exists)
+function JGTDummyAlive(argIndexNumber)      { return (argIndexNumber >= 0                      ); }
 // alive checkers that only take ONE! argument, wrappers around ds_exists...
 function JGTDSMapAlive(argIndexNumber)      { return ds_exists(argIndexNumber, ds_type_map     ); }
 function JGTDSListAlive(argIndexNumber)     { return ds_exists(argIndexNumber, ds_type_list    ); }
@@ -82,45 +85,61 @@ function JGTDSPriorityAlive(argIndexNumber) { return ds_exists(argIndexNumber, d
 function JGTDSQueueAlive(argIndexNumber)    { return ds_exists(argIndexNumber, ds_type_queue   ); }
 function JGTDSStackAlive(argIndexNumber)    { return ds_exists(argIndexNumber, ds_type_stack   ); }
 
-function JGTBase(argIndexNumber, argDeleterFunctionOrString, argCheckerFunctionOrString)
+function JGTBase(argIndexNumber, argDeleterFunctionOrString, argCheckerFunctionOrString = undefined)
     constructor {
     // private:
-    m_value   = argIndexNumber;                         // a buffer/ds/surface index
-    m_deleter = JGTResolveFunction(argDeleterFunctionOrString); // a function that takes m_value and destroys it
-    m_checker = JGTResolveFunction(argCheckerFunctionOrString); // a function that takes m_value and returns true if it's alive, false otherwise.
+    
+    // @description the resource index.
+    m_value   = argIndexNumber;
+    
+    // @description a function that takes m_value and destroys it.
+    m_deleter = JGTResolveFunction(argDeleterFunctionOrString);
+    
+    // @description a function that takes m_value and returns true if it's alive, false otherwise.
+    m_checker = JGTResolveFunction(argCheckerFunctionOrString) ?? JGTResolveFunction("JGTDummyAlive");
     
     // public: THOSE ARE NOT STATICS INTENTIONALLY, JUST SO THE INHERITANCE STUFF WON'T BREAK!!!
-    valueOf = function() {
+    
+    // @description This is so you can pass JGTBase objects to runtime functions
+    // @returns {number} the index
+    valueOf   = function() {
         // this is the magic function that allows us to pass objects to runtime functions just fine.
         return m_value;  
     };
     
-    toString = function() {
+    // @description Pretends as if it stringified the index, just so string(mydsmap) works
+    // @returns {string} index stringified
+    toString  = function() {
         // just in case, to be suuuper sneaky.
         return string(m_value);
     };
     
-    Dispose = function() {
+    // @description explicitly disposes a resource, example usage s = s.Dispose();
+    Dispose   = function() {
         m_deleter(m_value);
         // unset index to a negative value.
         m_value = -1;
         if (JGT_DO_DEBUG_SPAM) {
             show_debug_message("JGT: Internal YY @@Dispose@@ call, " + instanceof(self) + " disposed, deleter is " + script_get_name(method_get_index(m_deleter)));
         }
+        // just so the s = s.Dispose(); can be used (both disposes and unsets to undefined)
+        return undefined;
     };
     
-    IsAlive = function() {
+    // @description Can be used to explicitly check whether a resource is alive or not.
+    // @returns {bool} is resource alive or not
+    IsAlive   = function() {
         return m_checker(m_value);
     };
     
     // runtime shit, thank you yoyogames, no, really, as much as I dislike opera's GX business practics
     // that's kewl, *hugs*
-    dispose = Dispose; // internal runtime name 1 (old YYJS stuff, doesn't really work)
+    dispose   = Dispose; // internal runtime name 1 (old YYJS stuff, doesn't really work)
     self[$ "@@Dispose@@"] = Dispose; // internal runtime name 2, used in effect structs since 2022+.
     
     // log:
     if (JGT_DO_DEBUG_SPAM) {
-        show_debug_message("JGT: Allocated, value is " + string(m_value) + ", checker is " + script_get_name(method_get_index(m_checker)));
+        show_debug_message("JGT: Allocated, value is " + string(m_value) + ", checker is " + script_get_name(method_get_index(m_checker)) + ", deleter is " + script_get_name(method_get_index(m_deleter)));
     }
 }
 
