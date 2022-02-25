@@ -30,15 +30,16 @@ function JustGCThings() {
 }
 
 // gml function cache
-global.JGTCache = {
+#macro __JGT_ds_map_create_orig ds_map_create
+global.JGTCache = __JGT_ds_map_create_orig(
     /* key = string, value = method */
-};
+);
 
 /// @description Resolves a runtime function, also useful if it's overridden by a macro.
 /// @param argTargetFunctionOrString runtime function name or the function itself
 function JGTResolveFunction(argTargetFunctionOrString) {
     if (is_string(argTargetFunctionOrString)) {
-        if (!variable_struct_exists(global.JGTCache, argTargetFunctionOrString)) {
+        if (!ds_map_exists(global.JGTCache, argTargetFunctionOrString)) {
             var ingmlscripts = false;
             // false - parsing runtime functions
             // true  - parsing gml scripts
@@ -62,17 +63,38 @@ function JGTResolveFunction(argTargetFunctionOrString) {
                 if (n == argTargetFunctionOrString) {
                     // cast to a runtime method for faster execution.
                     var rm = method(undefined, i);
-                    global.JGTCache[$ n] = rm;
+                    global.JGTCache[? n] = rm;
                     return rm;
                 }
             }
         }
         
-        return global.JGTCache[$ argTargetFunctionOrString];
+        return global.JGTCache[? argTargetFunctionOrString];
     }
     
     // already a method?
     return argTargetFunctionOrString;
+}
+
+/// @desc We get it, it won't work on HTML5, and? Just give us something nice already you ... *sigh*
+/// @returns {bool} Sure let's integrate NFTs into a super duper cool Crypto Browser instead of actually working on features...
+function JGTRussellCheck() {
+    static frussellchkres = undefined;
+    static mtchecker = (function() constructor { self[$ "@@Dispose@@"] = undefined; });
+    
+    if (is_undefined(frussellchkres)) {
+        try {
+            var _JGT_ignore = new mtchecker();
+            frussellchkres = false;
+        } catch (_JGT_Exception_) {
+            frussellchkres = true;
+            if (JGT_DO_DEBUG_SPAM) {
+                show_debug_message("JGT: NEW RUNTIME MODE. Sure, let's integrate NFTs instead of working on features... ;-;");
+            }
+        }
+    }
+    
+    return frussellchkres;
 }
 
 // a dummy function in case a resource type doesn't have it's own (good example - network sockets, no network_exists)
@@ -135,7 +157,27 @@ function JGTBase(argIndexNumber, argDeleterFunctionOrString, argCheckerFunctionO
     // runtime shit, thank you yoyogames, no, really, as much as I dislike opera's GX business practics
     // that's kewl, *hugs*
     dispose   = Dispose; // internal runtime name 1 (old YYJS stuff, doesn't really work)
-    self[$ "@@Dispose@@"] = Dispose; // internal runtime name 2, used in effect structs since 2022+.
+    if (JGTRussellCheck()) {
+        if (code_is_compiled()) {
+            /*
+                @@Dispose@@ is called with a null pointer.
+                And ALL (I mean it, ALL) YYC scripts do result->kind = KIND_UNDEFINED; in their first line
+                which crashes the entire thing right away because of a nullptr deref.
+                
+                Meaning for this funny thing to work in YYC, we must find a way to re-call into the destructor with an allocated RValue.
+                
+                If you're a YoYo employee, please see VM_Exec.cpp MarkAndSweepGen for more information.
+                
+            */
+            throw "JGT: YYC whoopsie, see comments inside JustGCThings.gml:JGTBase constructor line 163+";
+        }
+        // this member just needs to be present, not referenced anywhere.
+        scapegoat = JGTResolveFunction("@@NewObject@@")("@@Dispose@@", Dispose);
+    }
+    else {
+        // oh nice, old runtime.
+        self[$ "@@Dispose@@"] = dispose;
+    }
     
     // log:
     if (JGT_DO_DEBUG_SPAM) {

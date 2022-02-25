@@ -1,2 +1,3 @@
 /// @description delay so everything will get initialized properly...
+did = false;
 alarm[0] = 2;

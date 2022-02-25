@@ -27,9 +27,18 @@ surface_reset_target();
 surface_save(surf, "yellow.png");
 show_debug_message("surf[0,0] = " + string(surface_getpixel_ext(surf, 0, 0)));
 
+global.wtf = array_create(1);
+global.wtf[0] = ds_stack_create();
+ds_stack_push(global.wtf[0], 10, 20, 30, 40, 50, 60, 70, 80, 90, 100);
+global.wr = weak_ref_create(global.wtf[0]);
+delete global.wtf[0];
+
+randomize();
+
 // no destroy calls here at all! :p
 
 
 // testcase end
 show_debug_message("Variables end, should go out of scope now...");
 show_debug_message("place breakpoint here");
+did = true;
